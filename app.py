@@ -2,14 +2,23 @@ import datetime
 from flask import Flask, flash, render_template, request, redirect, url_for
 import firebase_admin
 from firebase_admin import credentials, firestore
+from datetime import datetime
+from flask import render_template
 
 app = Flask(__name__)
 
 app.secret_key = 'mapachespeludos_69'
+MESES_COMPLETOS = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+]
 # Iniciar Firebase con el JSoN de configuración
 cred = credentials.Certificate("firebase_config.json")
+# Inicializar la aplicación de Firebase
 firebase_admin.initialize_app(cred)
 db = firestore.client()
+
+
 
 # Ruta de menu principal
 @app.route('/')
@@ -105,30 +114,34 @@ def pagos():
     usuarios_ref = db.collection('usuarios').stream()
     
     usuarios_con_estado = []
+    todos_meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
     
     for doc in usuarios_ref:
         data = doc.to_dict()
-        # Convertir campos a minúsculas para búsqueda
         nombre = data.get('Nombre_completo', '').lower()
         colonia = data.get('Colonia', '').lower()
         folio = data.get('Folio', '').lower()
 
         if not busqueda or (busqueda in nombre or busqueda in colonia or busqueda in folio):
-            # Consulta para verificar si el usuario tiene pagos registrados
-            pagos_ref = db.collection('pagos').where('Folio_usuario', '==', data['Folio']).limit(1).stream()
-            pago_existe = next(pagos_ref, None)
+            # Obtener todos los pagos del usuario
+            pagos_ref = db.collection('pagos').where('Folio_usuario', '==', data['Folio']).stream()
             
-            # Determinar el estado basado en si existe pago registrado
-            estado = "Pagado" if pago_existe else "Debe"
+            meses_pagados = set()
+            for pago in pagos_ref:
+                pago_data = pago.to_dict()
+                if 'Periodo' in pago_data:
+                    meses_pago = pago_data['Periodo'].split(', ')
+                    meses_pagados.update(meses_pago)
             
-            # Agregar el estado a los datos del usuario
+            # Determinar estado
+            estado = 'Pagado' if len(meses_pagados) == len(todos_meses) else 'Debe'
+            
             data['EstadoPago'] = estado
             usuarios_con_estado.append(data)
     
     return render_template('pagos.html', usuarios=usuarios_con_estado)
 
-from datetime import datetime
-from flask import render_template
 
 @app.route('/registrar_pago/<folio>', methods=['GET', 'POST'])
 def registrar_pago(folio):
@@ -140,41 +153,68 @@ def registrar_pago(folio):
         flash('Usuario no encontrado', 'danger')
         return redirect(url_for('pagos'))
     
-    # Formatear fecha actual
-    ahora = datetime.now()
-    fecha_actual = ahora.strftime("%d de %B de %Y, %H:%M %p ")  # Ej: "30 de mayo de 2025, 12:00:00 a.m. UTC-6"
-    fecha_actual_iso = ahora.isoformat()  # Para almacenar en la base de datos
+    # Obtener meses ya pagados
+    pagos_ref = db.collection('pagos').where('Folio_usuario', '==', folio).stream()
+    meses_pagados = set()
+    
+    for pago in pagos_ref:
+        pago_data = pago.to_dict()
+        if 'Periodo' in pago_data:
+            meses_pago = pago_data['Periodo'].split(', ')
+            meses_pagados.update(meses_pago)
+    
+    # Meses pendientes
+    meses_pendientes = [mes for mes in MESES_COMPLETOS if mes not in meses_pagados]
+    meses_seleccionados = []  # Inicializada aquí para todas las peticiones
     
     if request.method == 'POST':
         try:
             monto = float(request.form['monto'])
-            meses_seleccionados = request.form.getlist('meses')
-            fecha_pago = request.form['fecha_pago']
+            meses_seleccionados = request.form.getlist('meses')  # Actualizada en POST
             
+            # Validaciones
             if not meses_seleccionados:
                 flash('Debe seleccionar al menos un mes', 'danger')
                 return redirect(url_for('registrar_pago', folio=folio))
+                
+            for mes in meses_seleccionados:
+                if mes not in meses_pendientes:
+                    flash(f'El mes {mes} ya fue pagado anteriormente', 'danger')
+                    return redirect(url_for('registrar_pago', folio=folio))
             
-            # Registrar el pago
+            # Registrar pago
             pago_data = {
                 'Folio_usuario': folio,
                 'Monto': monto,
-                'Estado_pago': 'Pagado',
-                'Fecha_pago': fecha_actual,
+                'Estado_pago': 'Completo' if len(meses_seleccionados) == len(meses_pendientes) else 'Parcial',
+                'Fecha_pago': datetime.now().strftime("%d/%m/%Y, %H:%M"),
                 'Periodo': ', '.join(meses_seleccionados),
-                'Timestamp': fecha_actual_iso
+                'Timestamp': datetime.now().isoformat()
             }
             
             db.collection('pagos').add(pago_data)
-            flash('Pago registrado exitosamente', 'success')
+            
+            # Mensaje de confirmación
+            if len(meses_pagados) + len(meses_seleccionados) == len(MESES_COMPLETOS):
+                flash('¡Pago completo registrado (todos los meses cubiertos)!', 'success')
+            else:
+                flash(f'Pago registrado para {len(meses_seleccionados)} mes(es)', 'success')
+            
             return redirect(url_for('pagos'))
-        
+            
+        except ValueError:
+            flash('Monto inválido', 'danger')
         except Exception as e:
             flash(f'Error al registrar pago: {str(e)}', 'danger')
     
-    return render_template('registrar_pago.html', 
+    return render_template('registrar_pago.html',
                          usuario=usuario.to_dict(),
-                         fecha_actual=fecha_actual,
-                         fecha_actual_iso=fecha_actual_iso)
+                         meses=meses_pendientes,
+                         fecha_actual=datetime.now().strftime("%d/%m/%Y, %H:%M"))
+
+
+
+
+
 if __name__ == '__main__':
     app.run(debug=True)

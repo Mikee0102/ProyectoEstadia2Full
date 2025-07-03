@@ -64,18 +64,22 @@
                     
                     <!-- Selección de meses -->
                     <div class="mb-4">
-                        <label class="form-label fw-bold">Meses a pagar</label>
+                        <label class="form-label fw-bold">Meses pendientes de pago</label>
                         <div class="mb-3">
-                            {% set meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
-                                          'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'] %}
-                            {% for mes in meses %}
-                            <div class="form-check month-checkbox">
-                                <input class="form-check-input month-selector" type="checkbox" 
-                                       id="mes{{ loop.index }}" name="meses" value="{{ mes }}"
-                                       data-price="150"> <!-- Precio por mes -->
-                                <label class="form-check-label" for="mes{{ loop.index }}">{{ mes }}</label>
-                            </div>
-                            {% endfor %}
+                            {% if meses %}
+                                {% for mes in meses %}
+                                <div class="form-check month-checkbox">
+                                    <input class="form-check-input month-selector" type="checkbox" 
+                                        id="mes{{ loop.index }}" name="meses" value="{{ mes }}"
+                                        data-price="150">
+                                    <label class="form-check-label" for="mes{{ loop.index }}">{{ mes }}</label>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="alert alert-success">
+                                    <i class="bi bi-check-circle"></i> Todos los meses han sido pagados
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
                     
