@@ -1,3 +1,4 @@
+import calendar
 import datetime
 from flask import Flask, flash, render_template, request, redirect, url_for
 import firebase_admin
@@ -199,20 +200,71 @@ def registrar_pago(folio):
                 flash('¡Pago completo registrado (todos los meses cubiertos)!', 'success')
             else:
                 flash(f'Pago registrado para {len(meses_seleccionados)} mes(es)', 'success')
-            
+
             return redirect(url_for('pagos'))
-            
+
         except ValueError:
             flash('Monto inválido', 'danger')
         except Exception as e:
             flash(f'Error al registrar pago: {str(e)}', 'danger')
-    
+
     return render_template('registrar_pago.html',
+                        usuario=usuario.to_dict(),
+                        meses=meses_pendientes,
+                        fecha_actual=datetime.now().strftime("%d/%m/%Y, %H:%M"))
+
+
+@app.route('/historial_pagos/<folio>')
+def historial_pagos(folio):
+    # Obtener información del usuario
+    usuarios_ref = db.collection('usuarios').where('Folio', '==', folio).limit(1).stream()
+    usuario = next(usuarios_ref, None)
+    
+    if not usuario:
+        flash('Usuario no encontrado', 'danger')
+        return redirect(url_for('pagos'))
+    
+    # Obtener todos los pagos del usuario
+    pagos_ref = db.collection('pagos').where('Folio_usuario', '==', folio).stream()
+    
+    # Procesar pagos por mes/año
+    pagos_por_mes = {}
+    for pago in pagos_ref:
+        pago_data = pago.to_dict()
+        if 'Periodo' in pago_data:
+            for mes in pago_data['Periodo'].split(', '):
+                pagos_por_mes[mes] = True  # Marcar como pagado
+    
+    # Determinar meses pendientes
+    meses_pendientes = []
+    año_actual = datetime.now().year
+    for mes in MESES_COMPLETOS:
+        if f"{mes}" not in pagos_por_mes:  # Cambiar a f"{mes}/{año_actual}" para manejar años
+            meses_pendientes.append(mes)
+    
+
+     # Obtener año actual
+    año_actual = datetime.now().year
+    
+    # Generar datos de calendario para cada mes
+    calendarios = {}
+    for mes_num in range(1, 13):
+        mes_nombre = MESES_COMPLETOS[mes_num-1]
+        cal = calendar.monthcalendar(año_actual, mes_num)
+        calendarios[mes_nombre] = {
+            'año': año_actual,
+            'semanas': cal,
+            'dias_en_mes': calendar.monthrange(año_actual, mes_num)[1],
+            'primer_dia': calendar.monthrange(año_actual, mes_num)[0]
+        }
+    
+    return render_template('historial_pagos.html',
                          usuario=usuario.to_dict(),
-                         meses=meses_pendientes,
-                         fecha_actual=datetime.now().strftime("%d/%m/%Y, %H:%M"))
-
-
+                         pagos_por_mes=pagos_por_mes,
+                         meses_pendientes=meses_pendientes,
+                         meses_completos=MESES_COMPLETOS,
+                         calendarios=calendarios,
+                         año_actual=año_actual)
 
 
 
