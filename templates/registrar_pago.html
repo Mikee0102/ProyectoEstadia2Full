@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Registrar Pago</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        .payment-card {
+            max-width: 600px;
+            margin: 2rem auto;
+            border-radius: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .payment-header {
+            border-radius: 15px 15px 0 0 !important;
+        }
+        .month-checkbox {
+            display: inline-block;
+            width: 120px;
+            margin: 5px;
+        }
+        .btn-action {
+            min-width: 120px;
+        }
+        #totalAmount {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #0d6efd;
+        }
+        .form-control-plaintext {
+            border-bottom: 1px solid #dee2e6;
+            padding: 0.375rem 0;
+        }
+    </style>
+</head>
+<body class="container mt-4">
+    <div class="card payment-card">
+        <div class="card-header payment-header bg-primary text-white">
+            <h4 class="mb-0 text-center">
+                <i class="bi bi-cash-coin"></i> Registrar Pago
+            </h4>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('registrar_pago', folio=usuario.Folio) }}" id="paymentForm">
+                <!-- Información del usuario -->
+                <div class="mb-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nombre completo</label>
+                        <div class="form-control-plaintext">{{ usuario.Nombre_completo }}</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Folio</label>
+                        <div class="form-control-plaintext">{{ usuario.Folio }}</div>
+                    </div>
+                    
+                    <!-- Fecha actual (no editable) -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Fecha de pago</label>
+                        <div class="form-control-plaintext" id="fechaPago">{{ fecha_actual }}</div>
+                        <input type="hidden" name="fecha_pago" id="fechaInput" value="{{ fecha_actual_iso }}">
+                    </div>
+                    
+                    <!-- Selección de meses -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Meses a pagar</label>
+                        <div class="mb-3">
+                            {% set meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                                          'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'] %}
+                            {% for mes in meses %}
+                            <div class="form-check month-checkbox">
+                                <input class="form-check-input month-selector" type="checkbox" 
+                                       id="mes{{ loop.index }}" name="meses" value="{{ mes }}"
+                                       data-price="150"> <!-- Precio por mes -->
+                                <label class="form-check-label" for="mes{{ loop.index }}">{{ mes }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Monto total -->
+                    <div class="mb-4 p-3 bg-light rounded">
+                        <label class="form-label fw-bold">Monto total:</label>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span id="totalAmount">$0.00</span>
+                            <input type="hidden" name="monto" id="montoInput" value="0">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Botones de acción -->
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('pagos') }}" class="btn btn-outline-secondary btn-action">
+                        <i class="bi bi-x-circle"></i> Cancelar
+                    </a>
+                    <button type="submit" class="btn btn-success btn-action">
+                        <i class="bi bi-check-circle"></i> Registrar Pago
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript para calcular el total -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const checkboxes = document.querySelectorAll('.month-selector');
+            const totalAmount = document.getElementById('totalAmount');
+            const montoInput = document.getElementById('montoInput');
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', updateTotal);
+            });
+            
+            function updateTotal() {
+                let total = 0;
+                const selectedMonths = [];
+                
+                checkboxes.forEach(checkbox => {
+                    if (checkbox.checked) {
+                        total += parseFloat(checkbox.dataset.price);
+                        selectedMonths.push(checkbox.value);
+                    }
+                });
+                
+                totalAmount.textContent = '$' + total.toFixed(2);
+                montoInput.value = total.toFixed(2);
+            }
+            
+            // Actualizar al cargar la página
+            updateTotal();
+        });
+    </script>
+
+    <!-- Mostrar mensajes flash -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show mt-3" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</body>
+</html>

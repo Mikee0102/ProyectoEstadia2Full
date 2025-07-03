@@ -4,11 +4,72 @@
     <meta charset="UTF-8">
     <title>Pagos</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .badge-pagado {
+            background-color: #28a745;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 10px;
+        }
+        .badge-debe {
+            background-color: #dc3545;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 10px;
+        }
+    </style>
 </head>
 <body class="container mt-4">
     <h2>Apartado de pagos</h2>
-    <p>Esta cosa es de prueba para checar las rutas xd</p>
-    <p>Esta parte se encuentra en desarrollo</p>
+
+    <!-- Barra de Búsqueda -->
+    <form method="GET" action="{{ url_for('pagos') }}" class="row g-3 mb-4">
+        <div class="col-md-4">
+            <input type="text" name="busqueda" class="form-control" placeholder="Buscar... (Nombre, Colonia o Folio)" value="{{ request.args.get('busqueda', '') }}">
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary">Buscar</button>
+        </div>
+    </form>
+
+    <!-- Tabla -->
+    <table class="table table-bordered table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Nombre</th>
+                <th>Folio</th>
+                <th>Colonia</th>
+                <th>Contacto</th>
+                <th>Estado de Pago</th>
+                <th>Pagar</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for usuario in usuarios %}
+            <tr>
+                <td>{{ usuario.Nombre_completo }}</td>
+                <td>{{ usuario.Folio }}</td>
+                <td>{{ usuario.Colonia }}</td>
+                <td>{{ usuario.Numero_contacto }}</td>
+                <td>
+                    {% if usuario.EstadoPago == 'Pagado' %}
+                        <span class="badge-pagado">{{ usuario.EstadoPago }}</span>
+                    {% else %}
+                        <span class="badge-debe">{{ usuario.EstadoPago }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('registrar_pago', folio=usuario.Folio) }}" class="btn btn-sm btn-success">Pagos</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="text-center">No se encontraron usuarios.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
     <a href="{{ url_for('menu') }}" class="btn btn-outline-primary mt-3">Volver al menú</a>
 </body>
 </html>
