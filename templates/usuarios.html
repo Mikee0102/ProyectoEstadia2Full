@@ -62,7 +62,9 @@
                         Eliminar
                     </a>
                     <!-- tarjeta -->
-                    <a href="" class="btn btn-success">Generar tarjeta</a>
+                    <a href="{{ url_for('tarjeta_usuario', folio=usuario.Folio) }}" class="btn btn-primary btn-sm">
+                        Generar tarjeta
+                    </a>
                 </td>
             </tr>
             {% else %}

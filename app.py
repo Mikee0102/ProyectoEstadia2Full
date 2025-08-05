@@ -26,6 +26,97 @@ db = firestore.client()
 def menu():
     return render_template('menu.html')
 
+#Inicio PDF
+
+@app.route("/usuario/<folio>/tarjeta")
+def tarjeta_usuario(folio):
+    # Buscar usuario por folio en Firestore
+    usuarios_ref = db.collection("usuarios")
+    query = usuarios_ref.where("Folio", "==", folio).limit(1).stream()
+
+    usuario = None
+    for doc in query:
+        usuario = doc.to_dict()
+        break
+
+    if usuario:
+        return render_template("tarjeta_usuario.html", usuario=usuario)
+    else:
+        return "Usuario no encontrado", 404
+
+import qrcode
+import io
+from flask import send_file
+
+@app.route("/qr/<folio>")
+def codigo_qr(folio):
+    url = request.host_url.rstrip("/") + url_for("vista_usuario_qr", folio=folio)
+    qr_img = qrcode.make(url)
+    buffer = io.BytesIO()
+    qr_img.save(buffer, format="PNG")
+    buffer.seek(0)
+    return send_file(buffer, mimetype="image/png")
+
+@app.route("/usuario/<folio>/vista_qr")
+def vista_usuario_qr(folio):
+    usuarios_ref = db.collection("usuarios")
+    query = usuarios_ref.where("Folio", "==", folio).limit(1).stream()
+
+    usuario = None
+    for doc in query:
+        usuario = doc.to_dict()
+        break
+
+    if usuario:
+        return render_template("vista_qr_usuario.html", usuario=usuario)
+    else:
+        return "Usuario no encontrado", 404
+
+from reportlab.pdfgen import canvas
+
+@app.route("/usuario/<folio>/descargar_pdf")
+def descargar_pdf(folio):
+    usuarios_ref = db.collection("usuarios")
+    query = usuarios_ref.where("Folio", "==", folio).limit(1).stream()
+
+    usuario = None
+    for doc in query:
+        usuario = doc.to_dict()
+        break
+
+    if not usuario:
+        return "Usuario no encontrado", 404
+
+    # Generar código QR para la URL del usuario
+    qr_url = request.host_url.rstrip("/") + url_for("vista_usuario_qr", folio=folio)
+    qr_img = qrcode.make(qr_url)
+    qr_buffer = io.BytesIO()
+    qr_img.save(qr_buffer, format="PNG")
+    qr_buffer.seek(0)
+
+    # Crear el PDF
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=(250, 150))  # Tamaño tipo tarjeta
+
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(20, 120, f"Folio: {usuario['Folio']}")
+    c.drawString(20, 100, f"Nombre: {usuario['Nombre_completo']}")
+    c.drawString(20, 80, f"Colonia: {usuario['Colonia']}")
+    c.drawString(20, 60, f"Dirección: {usuario['Direccion']}")
+
+    # Agregar el QR
+    from reportlab.lib.utils import ImageReader
+    qr_img_reader = ImageReader(qr_buffer)
+    c.drawImage(qr_img_reader, 170, 40, width=60, height=60)
+
+    c.save()
+    buffer.seek(0)
+
+    return send_file(buffer, as_attachment=True, download_name=f"tarjeta_{folio}.pdf", mimetype='application/pdf')
+
+
+
+#Fin de PDF
 # Ruta de pagina de usuarios
 #Agregar restriciones de busqueda en numeros, CP...
 @app.route('/usuarios')
@@ -265,7 +356,6 @@ def historial_pagos(folio):
                          meses_completos=MESES_COMPLETOS,
                          calendarios=calendarios,
                          año_actual=año_actual)
-
 
 
 if __name__ == '__main__':

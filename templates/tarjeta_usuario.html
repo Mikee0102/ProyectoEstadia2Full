@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Tarjeta del Usuario</title>
+    <style>
+        .tarjeta {
+            width: 350px;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 30px auto;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        .botones {
+            margin-top: 20px;
+        }
+        .botones a {
+            text-decoration: none;
+            margin: 0 10px;
+            padding: 10px 15px;
+            background: #007bff;
+            color: white;
+            border-radius: 5px;
+        }
+        .botones a.cancelar {
+            background: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="tarjeta">
+        <h3>Tarjeta de Usuario</h3>
+        <p><strong>Folio:</strong> {{ usuario.Folio }}</p>
+        <p><strong>Nombre:</strong> {{ usuario.Nombre_completo }}</p>
+        <p><strong>Colonia:</strong> {{ usuario.Colonia }}</p>
+        <p><strong>Dirección:</strong> {{ usuario.Direccion }}</p>
+        <img src="{{ url_for('codigo_qr', folio=usuario.Folio) }}" alt="QR Code" width="150">
+        
+        <div class="botones">
+            <a href="/usuarios" class="cancelar">Cancelar</a>
+            <a href="{{ url_for('descargar_pdf', folio=usuario.Folio) }}" target="_blank">Descargar PDF</a>
+        </div>
+    </div>
+</body>
+</html>
