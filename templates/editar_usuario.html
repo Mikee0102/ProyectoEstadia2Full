@@ -36,7 +36,14 @@
             </div>
             <div class="col-md-6 mb-3">
                 <label>Colonia</label>
-                <input type="text" name="colonia" value="{{ usuario.Colonia }}" class="form-control" required>
+                <select name="colonia" class="form-control" required>
+                <option value="">Selecciona una colonia</option>
+                <option value="Emiliano Zapata" {% if usuario['Colonia'] == 'Emiliano Zapata' %}selected{% endif %}>Emiliano Zapata</option>
+                <option value="Barrio Santa Cruz" {% if usuario['Colonia'] == 'Barrio Santa Cruz' %}selected{% endif %}>Barrio Santa Cruz</option>
+                <option value="Villa Hermosa" {% if usuario['Colonia'] == 'Villa Hermosa' %}selected{% endif %}>Villa Hermosa</option>
+                <option value="Centro" {% if usuario['Colonia'] == 'Centro' %}selected{% endif %}>Centro</option>
+                </select>
+
             </div>
             <div class="col-md-3 mb-3">
                 <label>Código Postal</label>
