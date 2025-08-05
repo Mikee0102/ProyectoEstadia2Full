@@ -18,7 +18,7 @@
             <button type="submit" class="btn btn-primary">Buscar</button>
         </div>
         <div class="col-md-2">
-            <a href="{{ url_for('usuarios') }}" class="btn btn-secondary">Limpiar</a>
+            <!-- <a href="{{ url_for('usuarios') }}" class="btn btn-secondary">Limpiar</a> -->
         </div>
     </form>
 
@@ -61,6 +61,8 @@
                         onclick="return confirm('¿Estás seguro de eliminar este usuario?');">
                         Eliminar
                     </a>
+                    <!-- tarjeta -->
+                    <a href="" class="btn btn-success">Generar tarjeta</a>
                 </td>
             </tr>
             {% else %}
