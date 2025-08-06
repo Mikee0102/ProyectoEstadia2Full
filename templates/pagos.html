@@ -37,7 +37,7 @@
         <thead class="table-dark">
             <tr>
                 <th>Nombre</th>
-                <th>Folio</th>
+                <th>Numero de tarjeta</th>
                 <th>Colonia</th>
                 <th>Contacto</th>
                 <th>Estado de Pago</th>
@@ -65,7 +65,7 @@
                     </a>
                 </td>
                 <td>
-                    <a href="{{ url_for('registrar_pago', folio=usuario.Folio) }}" class="btn btn-sm btn-success">Pagos</a>
+                    <a href="{{ url_for('registrar_pago', folio=usuario.Folio) }}" class="btn btn-sm btn-success">Pagar</a>
                 </td>
             </tr>
             {% else %}

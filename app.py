@@ -1,6 +1,6 @@
 import calendar
 import datetime
-from flask import Flask, flash, render_template, request, redirect, url_for
+from flask import Flask, flash, render_template, request, redirect, url_for, jsonify
 import firebase_admin
 from firebase_admin import credentials, firestore
 from datetime import datetime
@@ -245,65 +245,122 @@ def registrar_pago(folio):
         flash('Usuario no encontrado', 'danger')
         return redirect(url_for('pagos'))
     
-    # Obtener meses ya pagados
-    pagos_ref = db.collection('pagos').where('Folio_usuario', '==', folio).stream()
-    meses_pagados = set()
+    usuario = usuario.to_dict()
     
-    for pago in pagos_ref:
-        pago_data = pago.to_dict()
-        if 'Periodo' in pago_data:
-            meses_pago = pago_data['Periodo'].split(', ')
-            meses_pagados.update(meses_pago)
+    # Obtener año actual y disponibles (actual + 3 atrás)
+    año_actual = datetime.now().year
+    años_disponibles = list(range(año_actual - 3, año_actual + 1))
     
-    # Meses pendientes
-    meses_pendientes = [mes for mes in MESES_COMPLETOS if mes not in meses_pagados]
-    meses_seleccionados = []  # Inicializada aquí para todas las peticiones
+    # Para GET requests, usar año actual por defecto
+    año_seleccionado = año_actual
     
     if request.method == 'POST':
         try:
+            año_seleccionado = int(request.form['anio'])
             monto = float(request.form['monto'])
-            meses_seleccionados = request.form.getlist('meses')  # Actualizada en POST
+            meses_seleccionados = request.form.getlist('meses')
             
             # Validaciones
             if not meses_seleccionados:
                 flash('Debe seleccionar al menos un mes', 'danger')
                 return redirect(url_for('registrar_pago', folio=folio))
                 
-            for mes in meses_seleccionados:
-                if mes not in meses_pendientes:
-                    flash(f'El mes {mes} ya fue pagado anteriormente', 'danger')
-                    return redirect(url_for('registrar_pago', folio=folio))
+            # Verificar meses no pagados previamente en el año seleccionado
+            pagos_ref = db.collection('pagos')\
+                         .where('Folio_usuario', '==', folio)\
+                         .where('anio', '==', año_seleccionado)\
+                         .stream()
             
-            # Registrar pago
+            meses_pagados = set()
+            for pago in pagos_ref:
+                pago_data = pago.to_dict()
+                if 'Periodo' in pago_data:
+                    meses_pago = pago_data['Periodo'].split(', ')
+                    meses_pagados.update(meses_pago)
+            
+            # Verificar conflictos
+            meses_conflicto = [mes for mes in meses_seleccionados if mes in meses_pagados]
+            if meses_conflicto:
+                flash(f'Los siguientes meses ya fueron pagados: {", ".join(meses_conflicto)}', 'danger')
+                return redirect(url_for('registrar_pago', folio=folio))
+            
+            # Registrar el pago
             pago_data = {
                 'Folio_usuario': folio,
+                'Nombre_usuario': usuario.get('Nombre_completo', ''),
                 'Monto': monto,
-                'Estado_pago': 'Completo' if len(meses_seleccionados) == len(meses_pendientes) else 'Parcial',
+                'anio': año_seleccionado,
+                'Estado_pago': 'Completo' if len(meses_seleccionados) == len(MESES_COMPLETOS) else 'Parcial',
                 'Fecha_pago': datetime.now().strftime("%d/%m/%Y, %H:%M"),
                 'Periodo': ', '.join(meses_seleccionados),
                 'Timestamp': datetime.now().isoformat()
             }
             
             db.collection('pagos').add(pago_data)
-            
-            # Mensaje de confirmación
-            if len(meses_pagados) + len(meses_seleccionados) == len(MESES_COMPLETOS):
-                flash('¡Pago completo registrado (todos los meses cubiertos)!', 'success')
-            else:
-                flash(f'Pago registrado para {len(meses_seleccionados)} mes(es)', 'success')
-
+            flash(f'Pago registrado correctamente para {len(meses_seleccionados)} mes(es) del año {año_seleccionado}', 'success')
             return redirect(url_for('pagos'))
-
-        except ValueError:
-            flash('Monto inválido', 'danger')
+            
+        except ValueError as ve:
+            flash(f'Datos inválidos: {str(ve)}', 'danger')
         except Exception as e:
             flash(f'Error al registrar pago: {str(e)}', 'danger')
-
+    
+    # Para GET requests, obtener meses pendientes del año seleccionado
+    pagos_ref = db.collection('pagos')\
+                 .where('Folio_usuario', '==', folio)\
+                 .where('anio', '==', año_seleccionado)\
+                 .stream()
+    
+    meses_pagados = set()
+    for pago in pagos_ref:
+        pago_data = pago.to_dict()
+        if 'Periodo' in pago_data:
+            meses_pago = pago_data['Periodo'].split(', ')
+            meses_pagados.update(meses_pago)
+    
+    meses_pendientes = [mes for mes in MESES_COMPLETOS if mes not in meses_pagados]
+    
     return render_template('registrar_pago.html',
-                        usuario=usuario.to_dict(),
-                        meses=meses_pendientes,
-                        fecha_actual=datetime.now().strftime("%d/%m/%Y, %H:%M"))
+                         usuario=usuario,
+                         meses_pendientes=meses_pendientes,
+                         años_disponibles=años_disponibles,
+                         año_actual=año_seleccionado,
+                         fecha_actual=datetime.now().strftime("%d/%m/%Y, %H:%M"),
+                         fecha_actual_iso=datetime.now().isoformat())
 
+@app.route('/get_meses_pendientes')
+def get_meses_pendientes():
+    try:
+        folio = request.args.get('folio')
+        año = int(request.args.get('anio'))
+        
+        if not folio or not año:
+            return jsonify({'success': False, 'error': 'Parámetros faltantes'}), 400
+        
+        # Obtener meses ya pagados para este año
+        pagos_ref = db.collection('pagos')\
+                     .where('Folio_usuario', '==', folio)\
+                     .where('anio', '==', año)\
+                     .stream()
+        
+        meses_pagados = set()
+        for pago in pagos_ref:
+            pago_data = pago.to_dict()
+            if 'Periodo' in pago_data:
+                meses_pago = pago_data['Periodo'].split(', ')
+                meses_pagados.update(meses_pago)
+        
+        meses_pendientes = [mes for mes in MESES_COMPLETOS if mes not in meses_pagados]
+        
+        return jsonify({
+            'success': True,
+            'meses_pendientes': meses_pendientes
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/historial_pagos/<folio>')
 def historial_pagos(folio):
