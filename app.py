@@ -372,27 +372,28 @@ def historial_pagos(folio):
         flash('Usuario no encontrado', 'danger')
         return redirect(url_for('pagos'))
     
-    # Obtener todos los pagos del usuario
-    pagos_ref = db.collection('pagos').where('Folio_usuario', '==', folio).stream()
+    usuario = usuario.to_dict()
     
-    # Procesar pagos por mes/año
+    # Obtener año actual y disponibles (actual + 3 atrás)
+    año_actual = datetime.now().year
+    años_disponibles = list(range(año_actual - 3, año_actual + 1))
+    
+    # Obtener todos los pagos del usuario para el año actual
+    pagos_ref = db.collection('pagos')\
+                 .where('Folio_usuario', '==', folio)\
+                 .where('anio', '==', año_actual)\
+                 .stream()
+    
+    # Procesar pagos por mes
     pagos_por_mes = {}
     for pago in pagos_ref:
         pago_data = pago.to_dict()
         if 'Periodo' in pago_data:
             for mes in pago_data['Periodo'].split(', '):
-                pagos_por_mes[mes] = True  # Marcar como pagado
+                pagos_por_mes[mes] = True
     
     # Determinar meses pendientes
-    meses_pendientes = []
-    año_actual = datetime.now().year
-    for mes in MESES_COMPLETOS:
-        if f"{mes}" not in pagos_por_mes:  # Cambiar a f"{mes}/{año_actual}" para manejar años
-            meses_pendientes.append(mes)
-    
-
-     # Obtener año actual
-    año_actual = datetime.now().year
+    meses_pendientes = [mes for mes in MESES_COMPLETOS if mes not in pagos_por_mes]
     
     # Generar datos de calendario para cada mes
     calendarios = {}
@@ -400,20 +401,66 @@ def historial_pagos(folio):
         mes_nombre = MESES_COMPLETOS[mes_num-1]
         cal = calendar.monthcalendar(año_actual, mes_num)
         calendarios[mes_nombre] = {
-            'año': año_actual,
             'semanas': cal,
             'dias_en_mes': calendar.monthrange(año_actual, mes_num)[1],
             'primer_dia': calendar.monthrange(año_actual, mes_num)[0]
         }
     
     return render_template('historial_pagos.html',
-                         usuario=usuario.to_dict(),
+                         usuario=usuario,
                          pagos_por_mes=pagos_por_mes,
                          meses_pendientes=meses_pendientes,
                          meses_completos=MESES_COMPLETOS,
                          calendarios=calendarios,
-                         año_actual=año_actual)
+                         año_actual=año_actual,
+                         años_disponibles=años_disponibles)
 
+@app.route('/get_historial_pagos')
+def get_historial_pagos():
+    try:
+        folio = request.args.get('folio')
+        año = int(request.args.get('anio'))
+        
+        # Obtener pagos del usuario para el año solicitado
+        pagos_ref = db.collection('pagos')\
+                     .where('Folio_usuario', '==', folio)\
+                     .where('anio', '==', año)\
+                     .stream()
+        
+        # Procesar pagos por mes
+        pagos_por_mes = {}
+        for pago in pagos_ref:
+            pago_data = pago.to_dict()
+            if 'Periodo' in pago_data:
+                for mes in pago_data['Periodo'].split(', '):
+                    pagos_por_mes[mes] = True
+        
+        # Determinar meses pendientes
+        meses_pendientes = [mes for mes in MESES_COMPLETOS if mes not in pagos_por_mes]
+        
+        # Generar datos de calendario para cada mes
+        calendarios = {}
+        for mes_num in range(1, 13):
+            mes_nombre = MESES_COMPLETOS[mes_num-1]
+            cal = calendar.monthcalendar(año, mes_num)
+            calendarios[mes_nombre] = {
+                'semanas': cal,
+                'dias_en_mes': calendar.monthrange(año, mes_num)[1],
+                'primer_dia': calendar.monthrange(año, mes_num)[0]
+            }
+        
+        return jsonify({
+            'success': True,
+            'meses_pendientes': meses_pendientes,
+            'meses_completos': MESES_COMPLETOS,
+            'calendarios': calendarios,
+            'año_actual': año
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
