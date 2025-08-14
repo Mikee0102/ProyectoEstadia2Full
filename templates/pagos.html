@@ -7,12 +7,14 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         :root {
-            /* Paleta de rojos y guindas intensos */
-            --color-primary: #8B0000;       /* Rojo guinda oscuro (principal) */
-            --color-secondary: #D22B2B;     /* Rojo vivo (para destacar) */
-            --color-accent: #FF6B6B;        /* Rojo claro (acentos) */
-            --color-dark: #1A1A1A;          /* Texto negro */
-            --color-light: #FFF5F5;         /* Fondo rojo muy claro */
+            
+            --color-primary: #9a0000;       
+            --color-secondary: #c20000;     
+            --color-accent: #de0e0e;        
+            --color-light-accent: #ff4e4e;  
+            --color-alert: #ea0001;         
+            --color-dark: #1A1A1A;          
+            --color-light: #FFF0F0;        
         }
 
         body {
@@ -23,8 +25,8 @@
         .container {
             max-width: 1200px;
             background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             padding: 2rem;
             margin-top: 2rem;
             border-top: 5px solid var(--color-primary);
@@ -36,35 +38,35 @@
             text-transform: uppercase;
             letter-spacing: 1px;
             padding-bottom: 0.5rem;
-            border-bottom: 3px solid var(--color-secondary);
+            border-bottom: 3px solid var(--color-accent);
             display: inline-block;
+            font-size: 1.8rem;
         }
 
-        /* Barra de búsqueda con rojo claro */
+        
         .search-box {
-            background-color: rgba(139, 0, 0, 0.1);
+            background: linear-gradient(90deg, rgba(154,0,0,0.1) 0%, rgba(255,78,78,0.1) 100%);
             border-radius: 8px;
             padding: 1.5rem;
             margin-bottom: 2rem;
-            border: 1px solid rgba(139, 0, 0, 0.2);
+            border: 1px solid var(--color-light-accent);
         }
 
         .btn-primary {
             background-color: var(--color-primary);
             border: none;
             font-weight: 600;
-            padding: 0.5rem 1.5rem;
             transition: all 0.3s;
         }
 
         .btn-primary:hover {
-            background-color: #6B0000; /* Guinda más oscuro */
+            background-color: var(--color-secondary);
             transform: translateY(-2px);
         }
 
-        /* Tabla con estilo rojo */
+        
         .table thead th {
-            background-color: var(--color-primary);
+            background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%);
             color: white;
             font-weight: 600;
             text-transform: uppercase;
@@ -72,42 +74,41 @@
         }
 
         .table tbody tr:hover {
-            background-color: rgba(255, 107, 107, 0.1); /* Rojo claro */
+            background-color: rgba(255, 78, 78, 0.1);
         }
 
-        /* Badges personalizados */
+        
+        .badge {
+            font-weight: 600;
+            padding: 0.5rem 0.8rem;
+            border-radius: 50px;
+        }
         .badge-pagado {
-            background-color: var(--color-primary); /* Guinda */
+            background-color: var(--color-primary);
         }
-
         .badge-debe {
-            background-color: var(--color-secondary); /* Rojo vivo */
+            background-color: var(--color-alert);
         }
-
         .badge-baja {
-            background-color: #6D6D6D; /* Gris */
+            background-color: #6D6D6D;
         }
 
-        /* Botón de éxito (en rojo claro) */
+        
         .btn-success {
             background-color: var(--color-accent);
-            color: var(--color-dark);
             border: none;
             font-weight: 600;
         }
-
         .btn-success:hover {
-            background-color: #E55C5C; /* Rojo más oscuro */
-            color: white;
+            background-color: var(--color-secondary);
         }
 
-        /* Botón "Volver" con borde guinda */
+        
         .btn-outline-primary {
             border-color: var(--color-primary);
             color: var(--color-primary);
             font-weight: 600;
         }
-
         .btn-outline-primary:hover {
             background-color: var(--color-primary);
             color: white;
@@ -115,14 +116,14 @@
     </style>
 </head>
 <body class="container mt-4">
-    <h2 class="mb-4"><i class="bi bi-credit-card"></i> Gestión de Pagos</h2>
+    <h2 class="mb-4"><i class="bi bi-credit-card"></i> Control de Pagos</h2>
 
     <!-- Barra de Búsqueda -->
     <div class="search-box">
         <form method="GET" action="{{ url_for('pagos') }}" class="row g-3">
             <div class="col-md-8">
                 <input type="text" name="busqueda" class="form-control" 
-                       placeholder="Buscar por nombre, colonia o folio..." 
+                       placeholder="🔍 Buscar por nombre, colonia o folio..." 
                        value="{{ request.args.get('busqueda', '') }}">
             </div>
             <div class="col-md-4">
@@ -156,7 +157,7 @@
                     <td>
                         {% if usuario.Estado == 'Inactivo' %}
                             <span class="badge badge-baja">
-                                <i class="bi bi-person-x"></i> Baja
+                                <i class="bi bi-person-x"></i> Inactivo
                             </span>
                         {% else %}
                             <a href="{{ url_for('historial_pagos', folio=usuario.Folio) }}">
