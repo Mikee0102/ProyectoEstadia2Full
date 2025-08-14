@@ -2,80 +2,202 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Pagos</title>
+    <title>Pagos - Presidencia de San Vicente Xiloxochitla</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
-        .badge-pagado {
-            background-color: #28a745;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 10px;
+        :root {
+            /* Paleta de rojos y guindas intensos */
+            --color-primary: #8B0000;       /* Rojo guinda oscuro (principal) */
+            --color-secondary: #D22B2B;     /* Rojo vivo (para destacar) */
+            --color-accent: #FF6B6B;        /* Rojo claro (acentos) */
+            --color-dark: #1A1A1A;          /* Texto negro */
+            --color-light: #FFF5F5;         /* Fondo rojo muy claro */
         }
-        .badge-debe {
-            background-color: #dc3545;
-            color: white;
-            padding: 5px 10px;
+
+        body {
+            background-color: var(--color-light);
+            font-family: 'Arial', sans-serif;
+        }
+
+        .container {
+            max-width: 1200px;
+            background-color: white;
             border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            margin-top: 2rem;
+            border-top: 5px solid var(--color-primary);
+        }
+
+        h2 {
+            color: var(--color-primary);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--color-secondary);
+            display: inline-block;
+        }
+
+        /* Barra de búsqueda con rojo claro */
+        .search-box {
+            background-color: rgba(139, 0, 0, 0.1);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(139, 0, 0, 0.2);
+        }
+
+        .btn-primary {
+            background-color: var(--color-primary);
+            border: none;
+            font-weight: 600;
+            padding: 0.5rem 1.5rem;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            background-color: #6B0000; /* Guinda más oscuro */
+            transform: translateY(-2px);
+        }
+
+        /* Tabla con estilo rojo */
+        .table thead th {
+            background-color: var(--color-primary);
+            color: white;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(255, 107, 107, 0.1); /* Rojo claro */
+        }
+
+        /* Badges personalizados */
+        .badge-pagado {
+            background-color: var(--color-primary); /* Guinda */
+        }
+
+        .badge-debe {
+            background-color: var(--color-secondary); /* Rojo vivo */
+        }
+
+        .badge-baja {
+            background-color: #6D6D6D; /* Gris */
+        }
+
+        /* Botón de éxito (en rojo claro) */
+        .btn-success {
+            background-color: var(--color-accent);
+            color: var(--color-dark);
+            border: none;
+            font-weight: 600;
+        }
+
+        .btn-success:hover {
+            background-color: #E55C5C; /* Rojo más oscuro */
+            color: white;
+        }
+
+        /* Botón "Volver" con borde guinda */
+        .btn-outline-primary {
+            border-color: var(--color-primary);
+            color: var(--color-primary);
+            font-weight: 600;
+        }
+
+        .btn-outline-primary:hover {
+            background-color: var(--color-primary);
+            color: white;
         }
     </style>
 </head>
 <body class="container mt-4">
-    <h2>Apartado de pagos</h2>
+    <h2 class="mb-4"><i class="bi bi-credit-card"></i> Gestión de Pagos</h2>
 
     <!-- Barra de Búsqueda -->
-    <form method="GET" action="{{ url_for('pagos') }}" class="row g-3 mb-4">
-        <div class="col-md-4">
-            <input type="text" name="busqueda" class="form-control" placeholder="Buscar... (Nombre, Colonia o Folio)" value="{{ request.args.get('busqueda', '') }}">
-        </div>
-        <div class="col-md-2">
-            <button type="submit" class="btn btn-primary">Buscar</button>
-        </div>
-    </form>
+    <div class="search-box">
+        <form method="GET" action="{{ url_for('pagos') }}" class="row g-3">
+            <div class="col-md-8">
+                <input type="text" name="busqueda" class="form-control" 
+                       placeholder="Buscar por nombre, colonia o folio..." 
+                       value="{{ request.args.get('busqueda', '') }}">
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Buscar
+                </button>
+            </div>
+        </form>
+    </div>
 
     <!-- Tabla -->
-    <table class="table table-bordered table-striped">
-        <thead class="table-dark">
-            <tr>
-                <th>Nombre</th>
-                <th>Numero de tarjeta</th>
-                <th>Colonia</th>
-                <th>Contacto</th>
-                <th>Estado de Pago</th>
-                <th>Pagar</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for usuario in usuarios %}
-            <tr>
-                <td>{{ usuario.Nombre_completo }}</td>
-                <td>{{ usuario.Folio }}</td>
-                <td>{{ usuario.Colonia }}</td>
-                <td>{{ usuario.Numero_contacto }}</td>
-                <td>
-                    <a href="{{ url_for('historial_pagos', folio=usuario.Folio) }}"
-                        class="{% if usuario.EstadoPago == 'Pagado' %}text-success{% else %}text-danger{% endif %}">
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th><i class="bi bi-person"></i> Nombre</th>
+                    <th><i class="bi bi-credit-card"></i> Folio</th>
+                    <th><i class="bi bi-house"></i> Colonia</th>
+                    <th><i class="bi bi-telephone"></i> Contacto</th>
+                    <th><i class="bi bi-info-circle"></i> Estado</th>
+                    <th><i class="bi bi-gear"></i> Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for usuario in usuarios %}
+                <tr>
+                    <td>{{ usuario.Nombre_completo }}</td>
+                    <td><strong>{{ usuario.Folio }}</strong></td>
+                    <td>{{ usuario.Colonia }}</td>
+                    <td>{{ usuario.Numero_contacto }}</td>
+                    <td>
+                        {% if usuario.Estado == 'Inactivo' %}
+                            <span class="badge badge-baja">
+                                <i class="bi bi-person-x"></i> Baja
+                            </span>
+                        {% else %}
+                            <a href="{{ url_for('historial_pagos', folio=usuario.Folio) }}">
+                                {% if usuario.EstadoPago == 'Pagado' %}
+                                    <span class="badge badge-pagado">
+                                        <i class="bi bi-check-circle"></i> Pagado
+                                    </span>
+                                {% else %}
+                                    <span class="badge badge-debe">
+                                        <i class="bi bi-exclamation-triangle"></i> {{ usuario.EstadoPago }}
+                                    </span>
+                                {% endif %}
+                            </a>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if usuario.Estado != 'Inactivo' %}
+                            <a href="{{ url_for('registrar_pago', folio=usuario.Folio) }}" 
+                               class="btn btn-success btn-sm">
+                                <i class="bi bi-cash-coin"></i> Pagar
+                            </a>
+                        {% else %}
+                            <span class="text-muted"><i class="bi bi-lock"></i> No disponible</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center py-4">
+                        <i class="bi bi-exclamation-circle"></i> No se encontraron registros.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
-                    {% if usuario.EstadoPago == 'Pagado' %}
-                            <i class="bi bi-check-circle-fill"></i>Pagado
-                    {% else %}
-                        <span class="badge bg-danger">
-                            <i class="bi bi-exclamation-triangle"></i> {{ usuario.EstadoPago }}
-                        </span>
-                    {% endif %}
-                    </a>
-                </td>
-                <td>
-                    <a href="{{ url_for('registrar_pago', folio=usuario.Folio) }}" class="btn btn-sm btn-success">Pagar</a>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="6" class="text-center">No se encontraron usuarios.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <a href="{{ url_for('menu') }}" class="btn btn-outline-primary mt-3">
+        <i class="bi bi-arrow-left"></i> Volver al menú
+    </a>
 
-    <a href="{{ url_for('menu') }}" class="btn btn-outline-primary mt-3">Volver al menú</a>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -199,7 +199,6 @@ def eliminar_usuario(folio):
     return redirect('/usuarios')
 
 
-# Ruta de pagina de pagos
 @app.route('/pagos')
 def pagos():
     busqueda = request.args.get('busqueda', '').strip().lower()
@@ -216,24 +215,31 @@ def pagos():
         folio = data.get('Folio', '').lower()
 
         if not busqueda or (busqueda in nombre or busqueda in colonia or busqueda in folio):
-            # Obtener todos los pagos del usuario
-            pagos_ref = db.collection('pagos').where('Folio_usuario', '==', data['Folio']).stream()
+            # Verificar estado del usuario
+            estado_usuario = data.get('Estado', 'Activo')
             
-            meses_pagados = set()
-            for pago in pagos_ref:
-                pago_data = pago.to_dict()
-                if 'Periodo' in pago_data:
-                    meses_pago = pago_data['Periodo'].split(', ')
-                    meses_pagados.update(meses_pago)
+            # Solo verificar pagos si el usuario está activo
+            if estado_usuario == 'Activo':
+                # Obtener todos los pagos del usuario
+                pagos_ref = db.collection('pagos').where('Folio_usuario', '==', data['Folio']).stream()
+                
+                meses_pagados = set()
+                for pago in pagos_ref:
+                    pago_data = pago.to_dict()
+                    if 'Periodo' in pago_data:
+                        meses_pago = pago_data['Periodo'].split(', ')
+                        meses_pagados.update(meses_pago)
+                
+                # Determinar estado de pago
+                estado_pago = 'Pagado' if len(meses_pagados) == len(todos_meses) else 'Debe'
+            else:
+                estado_pago = 'Inactivo'
             
-            # Determinar estado
-            estado = 'Pagado' if len(meses_pagados) == len(todos_meses) else 'Debe'
-            
-            data['EstadoPago'] = estado
+            data['Estado'] = estado_usuario
+            data['EstadoPago'] = estado_pago
             usuarios_con_estado.append(data)
     
     return render_template('pagos.html', usuarios=usuarios_con_estado)
-
 
 @app.route('/registrar_pago/<folio>', methods=['GET', 'POST'])
 def registrar_pago(folio):
@@ -278,16 +284,14 @@ def registrar_pago(folio):
                     meses_pago = pago_data['Periodo'].split(', ')
                     meses_pagados.update(meses_pago)
             
-            # Verificar conflictos
-            meses_conflicto = [mes for mes in meses_seleccionados if mes in meses_pagados]
-            if meses_conflicto:
-                flash(f'Los siguientes meses ya fueron pagados: {", ".join(meses_conflicto)}', 'danger')
-                return redirect(url_for('registrar_pago', folio=folio))
+            for mes in meses_seleccionados:
+                if mes in meses_pagados:
+                    flash(f'El mes {mes} del año {año_seleccionado} ya fue pagado anteriormente', 'danger')
+                    return redirect(url_for('registrar_pago', folio=folio))
             
             # Registrar el pago
             pago_data = {
                 'Folio_usuario': folio,
-                'Nombre_usuario': usuario.get('Nombre_completo', ''),
                 'Monto': monto,
                 'anio': año_seleccionado,
                 'Estado_pago': 'Completo' if len(meses_seleccionados) == len(MESES_COMPLETOS) else 'Parcial',
@@ -297,15 +301,15 @@ def registrar_pago(folio):
             }
             
             db.collection('pagos').add(pago_data)
-            flash(f'Pago registrado correctamente para {len(meses_seleccionados)} mes(es) del año {año_seleccionado}', 'success')
+            flash(f'Pago registrado para {len(meses_seleccionados)} mes(es) del año {año_seleccionado}', 'success')
             return redirect(url_for('pagos'))
             
-        except ValueError as ve:
-            flash(f'Datos inválidos: {str(ve)}', 'danger')
+        except ValueError:
+            flash('Datos inválidos', 'danger')
         except Exception as e:
             flash(f'Error al registrar pago: {str(e)}', 'danger')
     
-    # Para GET requests, obtener meses pendientes del año seleccionado
+    # Para GET requests, obtener meses pendientes del año actual
     pagos_ref = db.collection('pagos')\
                  .where('Folio_usuario', '==', folio)\
                  .where('anio', '==', año_seleccionado)\
@@ -330,37 +334,60 @@ def registrar_pago(folio):
 
 @app.route('/get_meses_pendientes')
 def get_meses_pendientes():
+    folio = request.args.get('folio')
+    año = int(request.args.get('anio'))
+    
+    # Obtener meses ya pagados para este año
+    pagos_ref = db.collection('pagos')\
+                 .where('Folio_usuario', '==', folio)\
+                 .where('anio', '==', año)\
+                 .stream()
+    
+    meses_pagados = set()
+    for pago in pagos_ref:
+        pago_data = pago.to_dict()
+        if 'Periodo' in pago_data:
+            meses_pago = pago_data['Periodo'].split(', ')
+            meses_pagados.update(meses_pago)
+    
+    meses_pendientes = [mes for mes in MESES_COMPLETOS if mes not in meses_pagados]
+    
+    return jsonify({
+        'meses_pendientes': meses_pendientes
+    })
+
+@app.route('/dar_baja_usuario/<folio>', methods=['POST'])
+def dar_baja_usuario(folio):
     try:
-        folio = request.args.get('folio')
-        año = int(request.args.get('anio'))
+        # Obtener información del usuario
+        usuarios_ref = db.collection('usuarios').where('Folio', '==', folio).limit(1).stream()
+        usuario = next(usuarios_ref, None)
         
-        if not folio or not año:
-            return jsonify({'success': False, 'error': 'Parámetros faltantes'}), 400
+        if not usuario:
+            flash('Usuario no encontrado', 'danger')
+            return redirect(url_for('pagos'))
         
-        # Obtener meses ya pagados para este año
-        pagos_ref = db.collection('pagos')\
-                     .where('Folio_usuario', '==', folio)\
-                     .where('anio', '==', año)\
-                     .stream()
+        # Crear registro de baja simple
+        baja_data = {
+            'folio_usuario': folio,
+            'nombre_usuario': usuario.to_dict().get('Nombre_completo', ''),
+            'fecha_baja': datetime.now().strftime("%d/%m/%Y %H:%M"),
+            'timestamp': datetime.now().isoformat()
+        }
         
-        meses_pagados = set()
-        for pago in pagos_ref:
-            pago_data = pago.to_dict()
-            if 'Periodo' in pago_data:
-                meses_pago = pago_data['Periodo'].split(', ')
-                meses_pagados.update(meses_pago)
+        # Guardar en Firestore (en una colección de bajas)
+        db.collection('bajas').add(baja_data)
         
-        meses_pendientes = [mes for mes in MESES_COMPLETOS if mes not in meses_pagados]
+        # Marcar al usuario como inactivo
+        usuario_ref = db.collection('usuarios').document(usuario.id)
+        usuario_ref.update({'Estado': 'Inactivo'})
         
-        return jsonify({
-            'success': True,
-            'meses_pendientes': meses_pendientes
-        })
+        flash(f'Usuario {folio} dado de baja correctamente', 'success')
+        return redirect(url_for('pagos'))
+        
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        flash(f'Error al dar de baja al usuario: {str(e)}', 'danger')
+        return redirect(url_for('registrar_pago', folio=folio))
 
 @app.route('/historial_pagos/<folio>')
 def historial_pagos(folio):
@@ -374,11 +401,11 @@ def historial_pagos(folio):
     
     usuario = usuario.to_dict()
     
-    # Obtener año actual y disponibles (actual + 3 atrás)
+    # Obtener año actual 
     año_actual = datetime.now().year
     años_disponibles = list(range(año_actual - 3, año_actual + 1))
     
-    # Obtener todos los pagos del usuario para el año actual
+    # Obtener todos los pagos del usuario 
     pagos_ref = db.collection('pagos')\
                  .where('Folio_usuario', '==', folio)\
                  .where('anio', '==', año_actual)\
@@ -392,7 +419,7 @@ def historial_pagos(folio):
             for mes in pago_data['Periodo'].split(', '):
                 pagos_por_mes[mes] = True
     
-    # Determinar meses pendientes
+    
     meses_pendientes = [mes for mes in MESES_COMPLETOS if mes not in pagos_por_mes]
     
     # Generar datos de calendario para cada mes
@@ -421,7 +448,7 @@ def get_historial_pagos():
         folio = request.args.get('folio')
         año = int(request.args.get('anio'))
         
-        # Obtener pagos del usuario para el año solicitado
+        # Obtener pagos del usuario 
         pagos_ref = db.collection('pagos')\
                      .where('Folio_usuario', '==', folio)\
                      .where('anio', '==', año)\
@@ -435,7 +462,7 @@ def get_historial_pagos():
                 for mes in pago_data['Periodo'].split(', '):
                     pagos_por_mes[mes] = True
         
-        # Determinar meses pendientes
+        
         meses_pendientes = [mes for mes in MESES_COMPLETOS if mes not in pagos_por_mes]
         
         # Generar datos de calendario para cada mes
