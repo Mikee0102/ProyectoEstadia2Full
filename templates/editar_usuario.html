@@ -93,7 +93,7 @@
             </div>
             <div class="col-md-6">
                 <label class="form-label">CURP</label>
-                <input type="text" name="curp" value="{{ usuario.Curp }}" class="form-control" required>
+                <input type="text" name="curp" value="{{ usuario.Curp }}" class="form-control">
             </div>
             <div class="col-md-6">
                 <label class="form-label">Número de tarjeta</label>
@@ -101,11 +101,11 @@
             </div>
             <div class="col-md-6">
                 <label class="form-label">Número de contacto</label>
-                <input type="tel" name="numero_contacto" value="{{ usuario.Numero_contacto }}" class="form-control" required>
+                <input type="tel" name="numero_contacto" value="{{ usuario.Numero_contacto }}" class="form-control">
             </div>
             <div class="col-md-6">
                 <label class="form-label">Email</label>
-                <input type="email" name="email" value="{{ usuario.Email }}" class="form-control" required>
+                <input type="email" name="email" value="{{ usuario.Email }}" class="form-control">
             </div>
             <div class="col-md-6">
                 <label class="form-label">Dirección</label>
@@ -123,7 +123,7 @@
             </div>
             <div class="col-md-3">
                 <label class="form-label">Código Postal</label>
-                <input type="text" name="codigo_postal" value="{{ usuario.Codigo_postal }}" class="form-control" required>
+                <input type="text" name="codigo_postal" value="{{ usuario.Codigo_postal }}" class="form-control">
             </div>
             <div class="col-md-3">
                 <label class="form-label">Género</label>
@@ -135,7 +135,7 @@
             </div>
             <div class="col-md-3">
                 <label class="form-label">Estatus</label>
-                <select name="estatus" class="form-select" required>
+                <select name="estatus" class="form-select">
                     <option value="Soltero" {% if usuario.Estatus == 'Soltero' %}selected{% endif %}>Soltero</option>
                     <option value="Casado" {% if usuario.Estatus == 'Casado' %}selected{% endif %}>Casado</option>
                 </select>
