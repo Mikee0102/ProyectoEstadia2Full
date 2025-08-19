@@ -198,7 +198,7 @@ def eliminar_usuario(folio):
         db.collection('usuarios').document(doc.id).delete()
     return redirect('/usuarios')
 
-
+#Ruta de pagpos 
 @app.route('/pagos')
 def pagos():
     busqueda = request.args.get('busqueda', '').strip().lower()
@@ -253,11 +253,11 @@ def registrar_pago(folio):
     
     usuario = usuario.to_dict()
     
-    # Obtener año actual y disponibles (actual + 3 atrás)
+    # Obtener año actual 
     año_actual = datetime.now().year
     años_disponibles = list(range(año_actual - 3, año_actual + 1))
     
-    # Para GET requests, usar año actual por defecto
+    #GET requests
     año_seleccionado = año_actual
     
     if request.method == 'POST':
